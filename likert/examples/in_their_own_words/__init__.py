@@ -10,10 +10,10 @@ import pandas as pd
 import numpy as np
 
 
-likert_files = files("likert")
-itow_data_files = likert_files / "examples" / "in_their_own_words" / "data"
+likert_files = files('likert')
+itow_data_files = likert_files / 'examples' / 'in_their_own_words' / 'data'
 # itow_survey = itow_data_files / 'in_their_own_words_survey_2021_11.xlsx'
-itow_survey = itow_data_files / "in_their_own_words_survey_2022_01.xlsx"
+itow_survey = itow_data_files / 'in_their_own_words_survey_2022_01.xlsx'
 
 
 import pandas as pd
@@ -35,7 +35,14 @@ def get_data_and_questions(data_src=itow_survey):
     return data, questions
 
 
-def word_cloud(words, save_filepath=None, width=2538, height=2538, **kwargs):
+def word_cloud(
+    words,
+    save_filepath=None,
+    width=2538,
+    height=2538,
+    background_color='black',
+    **kwargs,
+):
     from wordcloud import WordCloud
     from typing import Mapping
     from collections import Counter
@@ -44,7 +51,9 @@ def word_cloud(words, save_filepath=None, width=2538, height=2538, **kwargs):
         weight_for_word = Counter(words)
     else:
         weight_for_word = words
-    wc = WordCloud(width=width, height=height, **kwargs)
+    wc = WordCloud(
+        width=width, height=height, background_color=background_color, **kwargs
+    )
     wc.fit_words(weight_for_word)
     if save_filepath is not None:
         wc.to_file(save_filepath)
@@ -54,7 +63,7 @@ def word_cloud(words, save_filepath=None, width=2538, height=2538, **kwargs):
 import re
 
 
-def extract_end_of_large_question(x, pattern=re.compile("(?<=-\ )[\-\w\ ]+$")):
+def extract_end_of_large_question(x, pattern=re.compile('(?<=-\ )[\-\w\ ]+$')):
     m = pattern.search(x)
     if m is not None:
         return m.group(0)
@@ -65,7 +74,7 @@ def extract_end_of_large_question(x, pattern=re.compile("(?<=-\ )[\-\w\ ]+$")):
 from flair.models import TextClassifier
 from flair.data import Sentence
 
-sia = TextClassifier.load("en-sentiment")
+sia = TextClassifier.load('en-sentiment')
 
 
 def _sentiment_score_object(string):
@@ -76,9 +85,9 @@ def _sentiment_score_object(string):
 
 def sentiment_score(string):
     score = _sentiment_score_object(string)
-    if score.value == "NEGATIVE":
+    if score.value == 'NEGATIVE':
         return -score.score
-    elif score.value == "POSITIVE":
+    elif score.value == 'POSITIVE':
         return score.score
     else:
         raise ValueError(f"Didn't know score.value could be {score.value}")
@@ -89,25 +98,25 @@ def sentiment_score(string):
 from collections import Counter
 
 term_mapping = {
-    "addict": "Addict",
-    "slang": "Slang",
-    "user": "User",
-    "other": "Other",
+    'addict': 'Addict',
+    'slang': 'Slang',
+    'user': 'User',
+    'other': 'Other',
 }
 
 label_mapping = {
-    "others who use drugs": "Others who use",
-    "drug counselors": "Counselor",
-    "family": "Family",
-    "doctors": "Doctor",
-    "12-Step mutual support members": "12-Step",
+    'others who use drugs': 'Others who use',
+    'drug counselors': 'Counselor',
+    'family': 'Family',
+    'doctors': 'Doctor',
+    '12-Step mutual support members': '12-Step',
 }
 
 # @lru_cache(maxsize=1)
 def get_term_category(data):
-    term_category = data["Q14"]
+    term_category = data['Q14']
     term_category = term_category.apply(term_mapping.get)
-    term_category.name = "label"
+    term_category.name = 'label'
     return term_category
 
 
@@ -120,7 +129,7 @@ def iter_pairs(category, contexts):
 
 # @lru_cache(maxsize=1)
 def get_q2_data(data, questions):
-    q2_cols = data.columns[[c.startswith("Q2") for c in data.columns]]
+    q2_cols = data.columns[[c.startswith('Q2') for c in data.columns]]
     q2_questions = list(map(questions.__getitem__, q2_cols))
     # print(f"{q2_cols=}")
     # print(f"{q2_questions=}")
@@ -147,7 +156,7 @@ def get_term_interlocutor_data(data, questions):
 
     s = data[q2_cols]
     s.columns = context_labels
-    s = s.applymap(lambda x: {"Yes": True, "No": False}.get(x, x))
+    s = s.applymap(lambda x: {'Yes': True, 'No': False}.get(x, x))
 
     return s
 
@@ -159,7 +168,7 @@ def get_multiple_counts(data, questions):
 
     # missing = n - total_counts; missing.name = 'NA/missing'
     missing = s.isna().sum().loc[list(label_mapping.values())]
-    missing.name = "NA/missing"
+    missing.name = 'NA/missing'
 
     other_counts = Counter(iter_pairs(term_category, s))
     other_counts = pd.Series(other_counts).unstack().T
@@ -168,16 +177,16 @@ def get_multiple_counts(data, questions):
     ]
     # print(other_counts)
     term_counts = pd.Series(Counter(term_category)).loc[list(term_mapping.values())]
-    term_counts.name = "Self"
+    term_counts.name = 'Self'
 
     counts = pd.concat([term_counts, other_counts], axis=1)
     # reorder index and columns
     counts = counts.loc[list(term_mapping.values())][
-        ["Self"] + list(label_mapping.values())
+        ['Self'] + list(label_mapping.values())
     ]
 
     total_counts = counts.sum()
-    total_counts.name = "n"
+    total_counts.name = 'n'
 
     interlocutor_transparency_counts = total_counts.iloc[1:].loc[
         list(label_mapping.values())
@@ -205,11 +214,11 @@ convert_to_percentage = lambda x, n=1: round(x * 100, n)
 
 
 @np.vectorize
-def _elementwise_string_join(*elements, sep=" "):
+def _elementwise_string_join(*elements, sep=' '):
     return sep.join(map(str, elements))
 
 
-def elementwise_string_join(*elements, sep=" "):
+def elementwise_string_join(*elements, sep=' '):
     first_df, *_ = elements
     return pd.DataFrame(
         data=_elementwise_string_join(*elements, sep=sep),
@@ -241,11 +250,7 @@ from statsmodels.stats.proportion import proportion_confint
 
 
 def proportion_confint_df(
-    counts,
-    total_counts=None,
-    method="beta",
-    alpha=0.05,
-    interval_chars="()",
+    counts, total_counts=None, method='beta', alpha=0.05, interval_chars='()',
 ):
     open_char, close_char = interval_chars
     if total_counts is None:
@@ -268,7 +273,7 @@ def proportion_confint_df(
             series = pd.Series(
                 data=list(
                     map(
-                        lambda x: f"{open_char}{x[0]:.1f}-{x[1]:.1f}%{close_char}",
+                        lambda x: f'{open_char}{x[0]:.1f}-{x[1]:.1f}%{close_char}',
                         zip(lo, hi),
                     )
                 ),
@@ -285,41 +290,25 @@ def proportion_confint_df(
 
 
 def proportion_and_confint(
-    counts,
-    total_counts=None,
-    method="beta",
-    alpha=0.05,
-    interval_chars="()",
+    counts, total_counts=None, method='beta', alpha=0.05, interval_chars='()',
 ):
     if total_counts is None:
         total_counts = counts.sum()
     proportions_df = auto_divide(counts, total_counts)
     confint_df = proportion_confint_df(
-        counts,
-        total_counts,
-        method=method,
-        alpha=alpha,
-        interval_chars=interval_chars,
+        counts, total_counts, method=method, alpha=alpha, interval_chars=interval_chars,
     )
     return proportions_df, confint_df
 
 
 def proportion_with_confint(
-    counts,
-    total_counts=None,
-    method="beta",
-    alpha=0.05,
-    interval_chars="()",
+    counts, total_counts=None, method='beta', alpha=0.05, interval_chars='()',
 ):
     proportions_df, confint_df = proportion_and_confint(
-        counts,
-        total_counts,
-        method=method,
-        alpha=alpha,
-        interval_chars=interval_chars,
+        counts, total_counts, method=method, alpha=alpha, interval_chars=interval_chars,
     )
     return elementwise_string_join(
-        (proportions_df * 100).round(2).applymap(lambda x: f"{x}%"), confint_df
+        (proportions_df * 100).round(2).applymap(lambda x: f'{x}%'), confint_df
     )
 
 
@@ -328,7 +317,7 @@ def proportion_with_confint(
 
 def print_shortest_and_longest(names):
     unik_names = set(names)
-    print("Smallest:")
-    print("\t" + "\n\t".join(sorted(unik_names, key=len, reverse=False)[:5]))
-    print("\nLargest:")
-    print("\t" + "\n\t".join(sorted(unik_names, key=len, reverse=True)[:5]))
+    print('Smallest:')
+    print('\t' + '\n\t'.join(sorted(unik_names, key=len, reverse=False)[:5]))
+    print('\nLargest:')
+    print('\t' + '\n\t'.join(sorted(unik_names, key=len, reverse=True)[:5]))
