@@ -4,8 +4,8 @@ https://onlinelibrary.wiley.com/doi/abs/10.1111/add.14699
 """
 
 from importlib_resources import files
-from functools import lru_cache
-
+from functools import lru_cache, partial
+from typing import Callable, Union, Tuple, Mapping, Iterable, Optional
 import pandas as pd
 import numpy as np
 
@@ -74,12 +74,15 @@ def extract_end_of_large_question(x, pattern=re.compile('(?<=-\ )[\-\w\ ]+$')):
 from flair.models import TextClassifier
 from flair.data import Sentence
 
-sia = TextClassifier.load('en-sentiment')
+
+@lru_cache
+def get_text_classifier(data_name='en-sentiment'):
+    return TextClassifier.load(data_name)
 
 
 def _sentiment_score_object(string):
     sentence = Sentence(string)
-    sia.predict(sentence)
+    get_text_classifier().predict(sentence)
     return sentence.labels[0]
 
 
@@ -91,6 +94,97 @@ def sentiment_score(string):
         return score.score
     else:
         raise ValueError(f"Didn't know score.value could be {score.value}")
+
+
+def _edited_word_count_pairs(counts, word_mapping=()):
+    word_mapping = dict(word_mapping)
+    for word, count in counts:
+        if word in word_mapping:
+            word = word_mapping[word]
+        yield word, count
+
+
+def edit_word_counts(counts, word_mapping=()):
+    """Map words of (word, count) pairs, and recompute counts
+
+    >>> edit_word_counts([('apple', 5), ('banana', 4), ('ball', 3)], {'ball': 'banana'})
+    [('banana', 7), ('apple', 5)]
+
+    """
+    c = Counter()
+    for word, count in _edited_word_count_pairs(counts, word_mapping):
+        c.update({word: count})
+    return c.most_common()
+
+
+from colour import Color
+
+ColorSpec = Union[Color, str]
+Hex = str
+HexGradients = Iterable[Hex]
+
+
+def gradients_of_hex_colors(
+    color: ColorSpec = Color('grey'), number_of_gradients=200
+) -> HexGradients:
+    color = Color(color)
+    return list(map(str, color.range_to(Color('white'), number_of_gradients + 2)))[1:-1]
+
+
+def _range_index(x, n_indices, min_x, max_x):
+    return int((n_indices - 1) * (x - min_x) / (max_x - min_x))
+
+
+def mk_score_to_color(
+    colors: Optional[Union[ColorSpec, HexGradients]] = None,
+    *,
+    min_score=-1,
+    max_score=1,
+):
+    """Makes a function that produces a color for a given score (number)"""
+    if colors is None:
+        colors = 'grey'
+    if isinstance(colors, (str, Color)):
+        colors = gradients_of_hex_colors(colors)
+    score_to_index = partial(
+        _range_index, n_indices=len(colors), min_x=min_score, max_x=max_score,
+    )
+    return lambda score: colors[score_to_index(score)]
+
+
+WordCountPair = Tuple[str, float]
+CountsSpec = Union[Mapping[str, float], Iterable[WordCountPair]]
+Word = str
+ColorStr = str
+
+
+def word_count_for_counts_with_color_control(
+    counts: CountsSpec,
+    word_to_score: Callable[[Word], float],
+    score_to_color: Callable[[float], ColorStr],
+    *,
+    random_state=0,
+):
+    """Makes a WordCount object given
+
+    :param counts: word count dict or pairs
+    :param word_to_score: A function that scores words (gives us a number for a word)
+    :param score_to_color: A function that colors scores (gives us a color for a number)
+    :param random_state:
+    :return:
+
+    ``counts`` (word count dict or pairs)
+    """
+
+    def grey_color_func(
+        word, font_size, position, orientation, random_state=random_state, **kwargs
+    ):
+        score = word_to_score(word)
+        return score_to_color(score)
+
+    wc = word_cloud(dict(counts))
+    wc = wc.recolor(color_func=grey_color_func, random_state=random_state)
+    return wc
 
 
 # ---------------------------------------------------------------------------------------
