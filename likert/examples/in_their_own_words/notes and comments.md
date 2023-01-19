@@ -45,3 +45,45 @@ The following compare the differences between the proportions of respondents tha
 
 
 All numbers are rounded to the 3rd digit.
+
+Below we display the data behind these comparison tables is (where p1 and n1 are respectively the proportion and sample size for our study, 
+and p2 and n2 the same for the study we're comparing ourselves to). 
+With these, the reader may verify the statistics above themselves (for example, using a proportion comparison calculator such as 
+[this one](https://www.medcalc.org/calc/comparison_of_proportions.php))
+
+For "Never use term":
+
+|            term               |    p1 |   n1 |    p2 |   n2 |
+|:------------------------------|------:|-----:|------:|-----:|
+| Heroin addict                 | 0.456 |  206 | 0.171 |   44 |
+| Heroin-dependent              | 0.366 |  205 | 0.191 |   49 |
+| Heroin abuser                 | 0.49  |  206 | 0.187 |   48 |
+| Heroin misuser                | 0.459 |  205 | 0.237 |   61 |
+| Heroin user                   | 0.228 |  206 | 0.144 |   37 |
+| Person with heroin addiction  | 0.223 |  206 | 0.105 |   27 |
+| Person with heroin dependence | 0.248 |  206 | 0.144 |   37 |
+| Person who abuses heroin      | 0.4   |  205 | 0.179 |   46 |
+| Person who uses heroin        | 0.175 |  206 | 0.109 |   28 |
+| Person addicted to heroin     | 0.189 |  206 | 0.128 |   33 |
+| Person with heroin problem    | 0.176 |  205 | 0.109 |   28 |
+| Person who uses drugs         | 0.113 |  204 | 0.075 |   19 |
+
+For "Prefers to use term":
+
+|            term               |    p1 |   n1 |    p2 |   n2 |
+|:------------------------------|------:|-----:|------:|-----:|
+| Heroin addict                 | 0.456 |  206 | 0.171 |   44 |
+| Heroin-dependent              | 0.366 |  205 | 0.191 |   49 |
+| Heroin abuser                 | 0.49  |  206 | 0.187 |   48 |
+| Heroin misuser                | 0.459 |  205 | 0.237 |   61 |
+| Heroin user                   | 0.228 |  206 | 0.144 |   37 |
+| Person with heroin addiction  | 0.223 |  206 | 0.105 |   27 |
+| Person with heroin dependence | 0.248 |  206 | 0.144 |   37 |
+| Person who abuses heroin      | 0.4   |  205 | 0.179 |   46 |
+| Person who uses heroin        | 0.175 |  206 | 0.109 |   28 |
+| Person addicted to heroin     | 0.189 |  206 | 0.128 |   33 |
+| Person with heroin problem    | 0.176 |  205 | 0.109 |   28 |
+| Person who uses drugs         | 0.113 |  204 | 0.075 |   19 |
+
+
+
