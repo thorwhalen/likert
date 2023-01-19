@@ -71,8 +71,11 @@ def extract_end_of_large_question(x, pattern=re.compile('(?<=-\ )[\-\w\ ]+$')):
         return x
 
 
-from flair.models import TextClassifier
-from flair.data import Sentence
+try:
+    from flair.models import TextClassifier
+    from flair.data import Sentence
+except (ImportError, ModuleNotFoundError) as e:
+    print(f"Couldn't import flair: {e}")
 
 
 @lru_cache
@@ -404,6 +407,106 @@ def proportion_with_confint(
     return elementwise_string_join(
         (proportions_df * 100).round(2).applymap(lambda x: f'{x}%'), confint_df
     )
+
+
+def compute_stats_on_the_difference_of_proportions(
+    p1, p2, n1, n2, alternative='two-sided', prop_var=False
+):
+    r"""Compute the test statistic and p-value for the difference of two proportions.
+
+    :param p1: proportion in the first sample
+    :param p2: proportion in the second sample
+    :param n1: sample size of the first sample
+    :param n2: sample size of the second sample
+    :param alternative: alternative hypothesis, either 'two-sided' (default), 'smaller' or 'larger'
+    :param prop_var: if False (default), perform a normal approximation (agrees with R's prop.test).
+                        if True, compute the exact p-value based on the proportion variance.
+    :return: a tuple containing the test statistic and the p-value
+
+    Examples
+    --------
+
+    >>> p_value, chi_squared, z_score = compute_stats_on_the_difference_of_proportions(
+    ...     0.1, 0.15, 100, 100
+    ... )
+    >>> print(
+    ...     f"p-value: {p_value:.3f}",
+    ...     f"chi-squared: {chi_squared:.3f}",
+    ...     f"z-score: {z_score:.3f}",
+    ...     sep='\n'
+    ... )
+    p-value: 0.285
+    chi-squared: 1.143
+    z-score: -1.069
+
+    """
+    from statsmodels.stats.proportion import proportions_ztest, proportions_chisquare
+
+    if all(p > 1 for p in [p1, p2]):
+        # assume p1 and p2 are NOT proportions BUT counts
+        # so convert to proportions by dividing by n1 and n2
+        p1 /= n1
+        p2 /= n2
+
+    proportions = np.array([p1, p2])
+    sample_sizes = np.array([n1, n2])
+    counts = proportions * sample_sizes
+
+    # perform z-test
+    z_score, p_value = proportions_ztest(
+        count=counts, nobs=sample_sizes, alternative=alternative, prop_var=prop_var
+    )
+    # perform chi-square test
+    chi_squared, p_value, table = proportions_chisquare(count=counts, nobs=sample_sizes)
+
+    return p_value, chi_squared, z_score
+
+
+def compute_stats_on_the_difference_of_proportions_df(
+    df: pd.DataFrame,
+    p1_col: str = 'p1',
+    p2_col: str = 'p2',
+    n1_col: str = 'n1',
+    n2_col: str = 'n2',
+    alternative='two-sided',
+    prop_var=False,
+):
+    """Computes the multiple difference of proportions stats given a dataframe with
+    the two proportions (or counts) and their sample sizes in specific columns.
+
+    >>> df = pd.DataFrame({
+    ...     'p1': [0.1, 0.15],
+    ...     'p2': [0.15, 0.2],
+    ...     'n1': [100, 100],
+    ...     'n2': [100, 100],
+    ... })
+    >>> compute_stats_on_the_difference_of_proportions_df(df)
+        p_value  chi_squared   z_score
+    0  0.285049     1.142857 -1.069045
+    1  0.352120     0.865801 -0.930484
+
+    """
+    # use compute_stats_on_the_difference_of_proportions to compute the stats
+    # for each row
+
+    stats = df.apply(
+        lambda row: compute_stats_on_the_difference_of_proportions(
+            row[p1_col],
+            row[p2_col],
+            row[n1_col],
+            row[n2_col],
+            alternative=alternative,
+            prop_var=prop_var,
+        ),
+        axis=1,
+    )
+    # unpack the stats into separate columns
+    stats_df = pd.DataFrame(
+        data=list(stats),
+        columns=['p_value', 'chi_squared', 'z_score'],
+        index=df.index,
+    )
+    return stats_df
 
 
 # --------------------------
