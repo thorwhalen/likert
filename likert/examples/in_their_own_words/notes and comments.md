@@ -3,7 +3,7 @@
 
 
 In the following two tables we compare some statistics on the data collected during our study 
-and the data collected during a previous study by different authors (NEED REFERENCE).
+and the data collected during the ((Pivovarova & Stain, 2019) study. 
 
 
 The following compare the differences between the proportions of respondents that NEVER use the term to designate themselves.
@@ -84,6 +84,12 @@ For "Prefers to use term":
 | Person addicted to heroin     | 0.189 |  206 | 0.128 |   33 |
 | Person with heroin problem    | 0.176 |  205 | 0.109 |   28 |
 | Person who uses drugs         | 0.113 |  204 | 0.075 |   19 |
+
+
+References:
+
+(Pivovarova & Stain, 2019) Pivovarova, E., & Stein, M. (2019). In their own words: Language preferences of individuals who use heroin. Addiction, 114(10), 1785-1790. Doi 10.1111/add.14699.
+
 
 
 
