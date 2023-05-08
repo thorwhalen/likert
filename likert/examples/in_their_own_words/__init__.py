@@ -10,8 +10,10 @@ import pandas as pd
 import numpy as np
 
 
+
 likert_files = files('likert')
-itow_data_files = likert_files / 'examples' / 'in_their_own_words' / 'data'
+itow_files = likert_files / 'examples' / 'in_their_own_words' 
+itow_data_files = itow_files / 'data'
 # itow_survey = itow_data_files / 'in_their_own_words_survey_2021_11.xlsx'
 itow_survey = itow_data_files / 'in_their_own_words_survey_2022_01.xlsx'
 
