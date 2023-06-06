@@ -108,7 +108,7 @@ def _edited_word_count_pairs(counts, word_mapping=()):
         yield word, count
 
 
-def edit_word_counts(counts, word_mapping=()):
+def edit_word_counts(counts, word_mapping=(), skip_words=()):
     """Map words of (word, count) pairs, and recompute counts
 
     >>> edit_word_counts([('apple', 5), ('banana', 4), ('ball', 3)], {'ball': 'banana'})
@@ -117,7 +117,8 @@ def edit_word_counts(counts, word_mapping=()):
     """
     c = Counter()
     for word, count in _edited_word_count_pairs(counts, word_mapping):
-        c.update({word: count})
+        if word not in skip_words:
+            c.update({word: count})
     return c.most_common()
 
 
@@ -544,6 +545,32 @@ def compute_stats_on_the_difference_of_proportions_df(
     )
     return stats_df
 
+
+from functools import partial, wraps
+import seaborn as sns
+from i2 import Pipe
+import matplotlib.pyplot as plt
+
+
+_heatmap = partial(sns.heatmap, annot=True, cbar=False)
+
+
+@wraps(sns.heatmap)
+def myheatmap(*args, fmt="d", cmap="gray", **kwargs):
+    """
+    Example:
+
+    ```
+    myheatmap(counts); plt.title("Counts");
+    ```
+
+    """
+    plt.xticks(rotation=90)
+    return _heatmap(*args, **kwargs, cmap=cmap, fmt=fmt)
+
+
+# Example:
+#    myheatmap(counts); plt.title("Counts");
 
 # --------------------------
 
