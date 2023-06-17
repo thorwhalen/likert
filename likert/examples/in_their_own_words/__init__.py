@@ -4,8 +4,10 @@ https://onlinelibrary.wiley.com/doi/abs/10.1111/add.14699
 """
 
 from importlib_resources import files
-from functools import lru_cache, partial
-from typing import Callable, Union, Tuple, Mapping, Iterable, Optional
+from functools import lru_cache, partial, cached_property
+from collections import Counter
+from typing import Callable, Union, Tuple, Mapping, Iterable, Optional, Any
+import re
 import pandas as pd
 import numpy as np
 
@@ -26,9 +28,206 @@ import io
 # data = pd.read_excel(io.BytesIO(graze(src)), header=0)
 
 
+class Analysis:
+    def __init__(
+        a,
+        data_src=itow_survey,
+        metadata_src=str(itow_files / "terms_sentiments_and_categories.xlsx"),
+    ):
+        a.data_src = data_src
+        a.metadata_src = metadata_src
+        a.data, a.questions = get_data_and_questions(data_src)
+        # Adding aliases
+        a.data["term"] = a.data.Q1
+        a.data["category"] = a.data.Q14
+
+    @cached_property
+    def all_names(a):
+        return list(map(str.lower, a.data.term))
+
+    @cached_property
+    def orig_unik(a):
+        return set(a.all_names)
+
+    @cached_property
+    def names(a):
+        names_ = a.all_names
+        names_ = list(map(remove_everything_after_paren, names_))
+        names_ = [name.replace(" -", "") for name in names_]
+        return [name.strip() for name in names_]
+
+    @cached_property
+    def unik_names(a):
+        return set(a.names)
+
+    full_substitutions = {
+        "addicr": "addict",
+        "functioning addict": "functional addict",  # to group with other mention of functioning addict
+        "a user, an addict is the best term for a doc/hospital to use.": "user, addict",
+        "humbeing with lot of problems": "a human being with lot of problems",
+        "my preferred is nothing, just my name. i'm not trying to be labled. participant ultimately chose user.": "user",
+        "produtive": "productive",
+        "i like to powder my nose i sniff": "heroin sniffer",
+        "person with problems.": "person with problems",
+        "addicts": "addict",
+        "like to sniff heroin sniffer": "heroin sniffer",
+    }
+
+    remove_strings = re.compile(
+        "|".join(
+            [
+                '"',
+            ]
+        )
+    )
+
+    replace_with_space = re.compile("|".join(["\ a\ ", "\ an\ ", "^a\ ", "^an\ "]))
+
+    def str_preprocessing(a, string):
+        if string in a.full_substitutions:
+            print(f"---> {string}")
+            string = a.full_substitutions[string]
+        string = a.remove_strings.sub("", string)
+        string = a.replace_with_space.sub(" ", string)
+        return string.strip()
+
+    splitters = re.compile(",|/|\Wor\W|;")
+    # splitters = re.compile('alkjdfoi')
+
+    def string_to_weighed_names(a, string):
+        split_strings = a.splitters.split(string)
+        n = len(split_strings)
+        for s in split_strings:
+            yield s, 1 / n
+
+    def name_weights(
+        a,
+        strings,
+        #     str_preprocessing=lambda string: string,
+        #     string_to_weighed_names=lambda string: [(string, 1)],
+    ):
+        for string in map(a.str_preprocessing, strings):
+            for name, weight in a.string_to_weighed_names(string):
+                name = name.strip()
+                if name == "":
+                    raise ValueError(f"Oops with {string}")
+                yield name, weight
+
+    @cached_property
+    def orig_counts(a):
+        counts = Counter()
+        for name, weight in a.name_weights(a.names):
+            counts.update({name: weight})
+
+        counts = counts.most_common()
+        return counts
+
+    @cached_property
+    def edits(a):
+        return pd.read_excel(a.metadata_src, sheet_name="edits_and_categories")
+
+    @cached_property
+    def terms(a):
+        edits = dict(zip(a.edits.expression, a.edits.correction))
+        return [edits[x] if x in edits else x for x in a.names]
+
+    @cached_property
+    def counts(a):
+        edits = dict(zip(a.edits.expression, a.edits.correction))
+        skip_words = [k for k, v in edits.items() if v == "DELETE"]
+        edited_counts = edit_word_counts(a.orig_counts, edits, skip_words=skip_words)
+        return edited_counts
+
+    @cached_property
+    def mappings(a):
+        return pd.read_excel(a.metadata_src, sheet_name="mappings")
+
+    @cached_property
+    def category_for_expression(a):
+        d = a.mappings[["expression", "category"]]
+        dd = d.dropna()
+        return {k: v for k, v in zip(d.expression, dd.category) if v}
+
+    @cached_property
+    def categories(a):
+        return sorted(set(a.category_for_expression.values()))
+
+    @cached_property
+    def counts_dict_for_categorized_names(a):
+        return {k: v for k, v in a.counts if k in a.category_for_expression}
+
+    color_for_category = dict(
+        addict="green",
+        slang="purple",
+        user="blue",
+        other="yellow",
+    )
+
+    @cached_property
+    def term_category(a):
+        term_category = a.data.category
+        term_category = term_category.apply(str.lower)
+        # term_category = term_category.apply(term_mapping.get)
+        term_category.name = "label"
+        return term_category
+
+    @cached_property
+    def term_interlocutor_data(a):
+        return get_term_interlocutor_data(a.data, a.questions)
+
+    @cached_property
+    def multiple_counts(a):
+        s = a.term_interlocutor_data
+        n = len(s)
+        term_category = a.term_category
+
+        missing = s.isna().sum().loc[list(label_mapping.values())]
+        missing.name = "NA/missing"
+
+        other_counts = Counter(iter_pairs(term_category, s))
+        other_counts = pd.Series(other_counts).unstack().T
+        other_counts = other_counts[list(label_mapping.values())]
+        # print(other_counts)
+        term_counts = pd.Series(Counter(term_category))
+        term_counts.name = "Self"
+
+        counts = pd.concat([term_counts, other_counts], axis=1)
+        # reorder index and columns
+        counts = counts[["Self"] + list(label_mapping.values())]
+
+        total_counts = counts.sum()
+        total_counts.name = "n"
+
+        interlocutor_transparency_counts = total_counts.iloc[1:].loc[
+            list(label_mapping.values())
+        ]
+        interlocutor_total_counts = n - missing
+
+        all_counts = pd.concat([counts, pd.DataFrame(total_counts).T], axis=0)
+
+        return dict(
+            n=n,
+            missing=missing,
+            other_counts=other_counts,
+            term_counts=term_counts,
+            counts=counts,
+            total_counts=total_counts,
+            interlocutor_transparency_counts=interlocutor_transparency_counts,
+            interlocutor_total_counts=interlocutor_total_counts,
+            all_counts=all_counts,
+        )
+
+
+open_paren_re = re.compile(r"\(.*$")
+
+
+def remove_everything_after_paren(x):
+    return open_paren_re.sub("", x)
+
+
 @lru_cache(maxsize=1)
 def get_data_and_questions(data_src=itow_survey):
-    data = pd.read_excel(itow_survey, header=0)
+    data = pd.read_excel(data_src, header=0)
     orig_shape = data.shape
     if data.shape == orig_shape:
         questions = data.iloc[0]
@@ -100,12 +299,13 @@ def sentiment_score(string):
         raise ValueError(f"Didn't know score.value could be {score.value}")
 
 
-def _edited_word_count_pairs(counts, word_mapping=()):
+def _edited_word_count_pairs(counts, word_mapping=(), skip_words=()):
     word_mapping = dict(word_mapping)
     for word, count in counts:
-        if word in word_mapping:
-            word = word_mapping[word]
-        yield word, count
+        if word not in skip_words:
+            if word in word_mapping:
+                word = word_mapping[word]
+            yield word, count
 
 
 def edit_word_counts(counts, word_mapping=(), skip_words=()):
@@ -116,7 +316,7 @@ def edit_word_counts(counts, word_mapping=(), skip_words=()):
 
     """
     c = Counter()
-    for word, count in _edited_word_count_pairs(counts, word_mapping):
+    for word, count in _edited_word_count_pairs(counts, word_mapping, skip_words=()):
         if word not in skip_words:
             c.update({word: count})
     return c.most_common()
@@ -171,16 +371,19 @@ def mk_score_to_color(
     return lambda score: colors[score_to_index(score)]
 
 
+from typing import AnyStr
+
 WordCountPair = Tuple[str, float]
 CountsSpec = Union[Mapping[str, float], Iterable[WordCountPair]]
 Word = str
 ColorStr = str
+Score = Any
 
 
 def word_count_for_counts_with_color_control(
     counts: CountsSpec,
-    word_to_score: Callable[[Word], float],
-    score_to_color: Callable[[float], ColorStr],
+    word_to_score: Callable[[Word], Score],
+    score_to_color: Callable[[Score], ColorStr],
     *,
     random_state=0,
 ):
@@ -206,9 +409,85 @@ def word_count_for_counts_with_color_control(
     return wc
 
 
-# ---------------------------------------------------------------------------------------
+# p = re.compile(r'\(.*$')
 
-from collections import Counter
+# def remove_everything_after_paren(x):
+#     return p.sub('', x)
+
+
+# data, questions = get_data_and_questions()
+# all_names = list(map(str.lower, data['Q1']))
+
+# names = all_names
+# names = list(map(remove_everything_after_paren, names))
+# names = [name.replace(' -', '') for name in names]
+# names = [name.strip() for name in names]
+
+# full_substitutions = {
+#     'addicr': 'addict',
+#     'functioning addict': 'functional addict',  # to group with other mention of functioning addict
+#     'a user, an addict is the best term for a doc/hospital to use.': 'user, addict',
+#     'humbeing with lot of problems': 'a human being with lot of problems',
+#     "my preferred is nothing, just my name. i'm not trying to be labled. participant ultimately chose user.": 'user',
+#     "produtive": "productive",
+#     "i like to powder my nose i sniff": "heroin sniffer",
+#     "person with problems.": "person with problems",
+#     "addicts": "addict",
+#     "like to sniff heroin sniffer": "heroin sniffer",
+# }
+
+
+# remove_strings = re.compile('|'.join([
+#     '"',
+# ]))
+
+# replace_with_space = re.compile('|'.join([
+#     '\ a\ ', '\ an\ ', '^a\ ', '^an\ '
+# ]))
+
+# def str_preprocessing(string):
+#     if string in full_substitutions:
+#         print(f"---> {string}")
+#         string = full_substitutions[string]
+#     string = remove_strings.sub('', string)
+#     string = replace_with_space.sub(' ', string)
+#     return string.strip()
+
+# splitters = re.compile(',|/|\Wor\W|;')
+# # splitters = re.compile('alkjdfoi')
+
+# def string_to_weighed_names(string):
+#     split_strings = splitters.split(string)
+#     n = len(split_strings)
+#     for s in split_strings:
+#         yield s, 1 / n
+
+# def name_weights(
+#     strings,
+#     str_preprocessing=str_preprocessing,
+#     string_to_weighed_names=string_to_weighed_names,
+# #     str_preprocessing=lambda string: string,
+# #     string_to_weighed_names=lambda string: [(string, 1)],
+# ):
+#     for string in map(str_preprocessing, strings):
+#         for name, weight in string_to_weighed_names(string):
+#             name = name.strip()
+#             if name == '':
+#                 raise ValueError(f"Oops with {string}")
+#             yield name, weight
+
+# def get_word_counts(names=names):
+#     counts = Counter()
+#     for name, weight in name_weights(names):
+#         counts.update({name: weight})
+
+#     counts = counts.most_common()
+#     return counts
+
+# counts = get_word_counts(names)
+
+
+# ---------------------------------------------------------------------------------------
 
 term_mapping = {
     "addict": "Addict",
@@ -224,14 +503,6 @@ label_mapping = {
     "doctors": "Doctor",
     "12-Step mutual support members": "12-Step",
 }
-
-
-# @lru_cache(maxsize=1)
-def get_term_category(data):
-    term_category = data["Q14"]
-    term_category = term_category.apply(term_mapping.get)
-    term_category.name = "label"
-    return term_category
 
 
 def iter_pairs(category, contexts):
@@ -278,7 +549,7 @@ def get_term_interlocutor_data(data, questions):
 def get_multiple_counts(data, questions):
     s = get_term_interlocutor_data(data, questions)
     n = len(s)
-    term_category = get_term_category(data)
+    term_category = Analysis().term_category  # get_term_category(data)
 
     # missing = n - total_counts; missing.name = 'NA/missing'
     missing = s.isna().sum().loc[list(label_mapping.values())]
@@ -286,18 +557,17 @@ def get_multiple_counts(data, questions):
 
     other_counts = Counter(iter_pairs(term_category, s))
     other_counts = pd.Series(other_counts).unstack().T
-    other_counts = other_counts.loc[list(term_mapping.values())][
-        list(label_mapping.values())
-    ]
+    other_counts = other_counts[list(label_mapping.values())]
+    # other_counts = other_counts.loc[list(term_mapping.values())][
+    #     list(label_mapping.values())
+    # ]
     # print(other_counts)
-    term_counts = pd.Series(Counter(term_category)).loc[list(term_mapping.values())]
+    term_counts = pd.Series(Counter(term_category))
     term_counts.name = "Self"
 
     counts = pd.concat([term_counts, other_counts], axis=1)
     # reorder index and columns
-    counts = counts.loc[list(term_mapping.values())][
-        ["Self"] + list(label_mapping.values())
-    ]
+    counts = counts[["Self"] + list(label_mapping.values())]
 
     total_counts = counts.sum()
     total_counts.name = "n"
