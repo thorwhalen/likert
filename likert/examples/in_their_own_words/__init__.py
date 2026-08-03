@@ -6,7 +6,8 @@ https://onlinelibrary.wiley.com/doi/abs/10.1111/add.14699
 from importlib_resources import files
 from functools import lru_cache, partial, cached_property
 from collections import Counter
-from typing import Callable, Union, Tuple, Mapping, Iterable, Optional, Any
+from typing import Union, Tuple, Optional, Any
+from collections.abc import Callable, Mapping, Iterable
 import re
 import pandas as pd
 import numpy as np
@@ -81,7 +82,7 @@ class Analysis:
         )
     )
 
-    replace_with_space = re.compile("|".join(["\ a\ ", "\ an\ ", "^a\ ", "^an\ "]))
+    replace_with_space = re.compile("|".join([r"\ a\ ", r"\ an\ ", r"^a\ ", r"^an\ "]))
 
     def str_preprocessing(a, string):
         if string in a.full_substitutions:
@@ -91,7 +92,7 @@ class Analysis:
         string = a.replace_with_space.sub(" ", string)
         return string.strip()
 
-    splitters = re.compile(",|/|\Wor\W|;")
+    splitters = re.compile(r",|/|\Wor\W|;")
     # splitters = re.compile('alkjdfoi')
 
     def string_to_weighed_names(a, string):
@@ -244,7 +245,7 @@ def word_cloud(
     **kwargs,
 ):
     from wordcloud import WordCloud
-    from typing import Mapping
+    from collections.abc import Mapping
     from collections import Counter
 
     if isinstance(words, (list, tuple)):
@@ -263,7 +264,7 @@ def word_cloud(
 import re
 
 
-def extract_end_of_large_question(x, pattern=re.compile("(?<=-\ )[\-\w\ ]+$")):
+def extract_end_of_large_question(x, pattern=re.compile(r"(?<=-\ )[\-\w\ ]+$")):
     m = pattern.search(x)
     if m is not None:
         return m.group(0)
@@ -352,7 +353,7 @@ def _range_index(x, n_indices, min_x, max_x):
 
 
 def mk_score_to_color(
-    colors: Optional[Union[ColorSpec, HexGradients]] = None,
+    colors: ColorSpec | HexGradients | None = None,
     *,
     min_score=-1,
     max_score=1,
@@ -373,7 +374,7 @@ def mk_score_to_color(
 
 from typing import AnyStr
 
-WordCountPair = Tuple[str, float]
+WordCountPair = tuple[str, float]
 CountsSpec = Union[Mapping[str, float], Iterable[WordCountPair]]
 Word = str
 ColorStr = str
