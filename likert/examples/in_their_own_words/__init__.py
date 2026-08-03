@@ -328,7 +328,7 @@ def extract_dict(df: pd.DataFrame, key_col: str, val_col: str):
 
     >>> df = pd.DataFrame({'a': [1, 2, 3], 'b': ['X', 'Y', 'Z']})
     >>> extract_dict(df, 'a', 'b')
-    {1: 'Z', 2: 'Y', 3: 'Z'}
+    {1: 'X', 2: 'Y', 3: 'Z'}
 
     """
     return dict(zip(df[key_col], df[val_col]))
