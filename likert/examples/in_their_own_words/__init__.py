@@ -1,6 +1,13 @@
-"""
+"""Analysis of the "in their own words" drug-user self-reference survey.
 
-https://onlinelibrary.wiley.com/doi/abs/10.1111/add.14699
+Survey respondents described themselves in free text; this module cleans those
+answers, maps them onto a controlled vocabulary of terms, joins them with expert
+and automatic sentiment scores, and renders the word clouds and proportion plots
+used in the study.
+
+Background: https://onlinelibrary.wiley.com/doi/abs/10.1111/add.14699
+
+Needs the package's ``examples`` extra (``pip install likert[examples]``).
 """
 
 from importlib_resources import files
