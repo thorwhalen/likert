@@ -1,0 +1,7 @@
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents:
+
+   module_docs/likert
+   module_docs/likert/examples
+   module_docs/likert/examples/in_their_own_words

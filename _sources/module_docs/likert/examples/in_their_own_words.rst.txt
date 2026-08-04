@@ -1,0 +1,4 @@
+likert.examples.in_their_own_words
+==================================
+.. automodule:: likert.examples.in_their_own_words
+   :members:
