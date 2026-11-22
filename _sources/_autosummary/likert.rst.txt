@@ -1,0 +1,6 @@
+﻿likert
+======
+
+.. automodule:: likert
+
+   

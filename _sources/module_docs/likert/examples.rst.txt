@@ -1,4 +1,0 @@
-likert.examples
-===============
-.. automodule:: likert.examples
-   :members:

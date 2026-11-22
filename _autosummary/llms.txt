@@ -1,0 +1,12 @@
+# likert
+
+> Tools to analyze Likert scale data
+
+
+## Pages in this subsection
+
+- [likert](likert.html.md): Tools to analyze Likert scale data.
+
+## Optional
+
+- [Top-level llms.txt](../llms.txt): Complete documentation index.

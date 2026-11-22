@@ -1,4 +1,0 @@
-likert
-======
-.. automodule:: likert
-   :members:
